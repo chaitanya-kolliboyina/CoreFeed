@@ -28,4 +28,5 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
     newUser: "/onboarding",
   },
+  secret: process.env.NEXTAUTH_SECRET || "dummy-nextauth-secret-for-build",
 };
