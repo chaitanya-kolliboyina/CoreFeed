@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import GithubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@repo/db";
 
@@ -14,6 +15,40 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "dummy-google-id",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "dummy-google-secret",
+    }),
+    CredentialsProvider({
+      id: "credentials",
+      name: "Dev Bypass",
+      credentials: {
+        email: { label: "Email", type: "email", placeholder: "test@example.com" },
+        name: { label: "Name", type: "text", placeholder: "Test User" },
+      },
+      async authorize(credentials) {
+        // Only allow in development mode or if explicitly enabled
+        if (process.env.NODE_ENV === "production" && !process.env.ALLOW_DEV_BYPASS) {
+          return null;
+        }
+
+        const email = credentials?.email || "test@example.com";
+        const name = credentials?.name || "Test User";
+
+        const user = await prisma.user.upsert({
+          where: { email },
+          update: {},
+          create: {
+            email,
+            name,
+            image: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name)}`,
+          },
+        });
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: user.image,
+        };
+      },
     }),
   ],
   callbacks: {

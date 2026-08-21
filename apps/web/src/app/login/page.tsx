@@ -51,6 +51,19 @@ export default function LoginPage() {
             </svg>
             Continue with Google
           </button>
+
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-neutral-800"></div>
+            <span className="flex-shrink mx-4 text-neutral-500 text-xs uppercase">or</span>
+            <div className="flex-grow border-t border-neutral-800"></div>
+          </div>
+
+          <button
+            onClick={() => signIn("credentials", { email: "sandbox@example.com", name: "Dev Sandbox", callbackUrl: "/" })}
+            className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl font-medium bg-indigo-950/40 border border-indigo-900/60 text-indigo-200 hover:bg-indigo-900/40 hover:border-indigo-800 transition-all"
+          >
+            Enter Dev Sandbox
+          </button>
         </div>
 
         <span className="text-xs text-neutral-500 mt-8">
