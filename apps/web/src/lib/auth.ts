@@ -47,12 +47,16 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async session({ session, user }) {
+    async session({ session, token }) {
       if (session.user) {
-        session.user.id = user.id;
+        // When using JWT strategy, the user ID is in token.sub instead of user.id
+        session.user.id = token.sub || "";
       }
       return session;
     },
+  },
+  session: {
+    strategy: "jwt",
   },
   pages: {
     signIn: "/login",
