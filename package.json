@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --filter web dev",
-    "build": "pnpm --filter web build",
+    "build": "pnpm --filter @repo/db run db:generate && pnpm --filter web build",
     "start": "pnpm --filter web start",
     "lint": "pnpm --recursive run lint",
     "test": "vitest run",
