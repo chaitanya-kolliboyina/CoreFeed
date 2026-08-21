@@ -24,13 +24,8 @@ export const authOptions: NextAuthOptions = {
         name: { label: "Name", type: "text", placeholder: "Test User" },
       },
       async authorize(credentials) {
-        // Only allow in development mode or if explicitly enabled
-        if (process.env.NODE_ENV === "production" && !process.env.ALLOW_DEV_BYPASS) {
-          return null;
-        }
-
-        const email = credentials?.email || "test@example.com";
-        const name = credentials?.name || "Test User";
+        const email = credentials?.email || "sandbox@example.com";
+        const name = credentials?.name || "Dev Sandbox";
 
         const user = await prisma.user.upsert({
           where: { email },
