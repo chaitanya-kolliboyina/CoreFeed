@@ -23,6 +23,9 @@ importers:
       '@next-auth/prisma-adapter':
         specifier: ^1.0.7
         version: 1.0.7(@prisma/client@5.22.0(prisma@5.22.0))(next-auth@4.24.15(next@14.2.35(@playwright/test@1.62.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
+      '@prisma/client':
+        specifier: ^5.22.0
+        version: 5.22.0(prisma@5.22.0)
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -60,6 +63,9 @@ importers:
       postcss:
         specifier: ^8
         version: 8.5.26
+      prisma:
+        specifier: ^5.22.0
+        version: 5.22.0
       tailwindcss:
         specifier: ^3.4.1
         version: 3.4.19(tsx@4.23.12)
