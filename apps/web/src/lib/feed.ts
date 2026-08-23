@@ -5,10 +5,23 @@ export interface RankedPost extends Post {
   source: Source;
   tags: (PostTag & { tag: Tag })[];
   score: number;
+  _count?: {
+    likes: number;
+    comments: number;
+    reposts: number;
+  };
 }
 
 export function rankPosts(
-  posts: (Post & { source: Source; tags: (PostTag & { tag: Tag })[] })[],
+  posts: (Post & {
+    source: Source;
+    tags: (PostTag & { tag: Tag })[];
+    _count?: {
+      likes: number;
+      comments: number;
+      reposts: number;
+    };
+  })[],
   userInterestTagIds: string[],
   readPostIds: string[],
   followedSourceIds: string[] = []

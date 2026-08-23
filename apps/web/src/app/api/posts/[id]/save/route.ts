@@ -16,6 +16,16 @@ export async function POST(
   const userId = session.user.id;
 
   try {
+    let label = "Default";
+    try {
+      const body = await request.json();
+      if (body?.label) {
+        label = body.label.trim();
+      }
+    } catch {
+      // Body might be empty, fallback to "Default"
+    }
+
     const existingSave = await prisma.save.findUnique({
       where: {
         userId_postId: {
@@ -26,23 +36,40 @@ export async function POST(
     });
 
     if (existingSave) {
-      await prisma.save.delete({
-        where: {
-          userId_postId: {
-            userId,
-            postId,
+      // If same label, toggle delete. If different label, update it!
+      if (existingSave.label === label) {
+        await prisma.save.delete({
+          where: {
+            userId_postId: {
+              userId,
+              postId,
+            },
           },
-        },
-      });
-      return NextResponse.json({ saved: false });
+        });
+        return NextResponse.json({ saved: false });
+      } else {
+        const updated = await prisma.save.update({
+          where: {
+            userId_postId: {
+              userId,
+              postId,
+            },
+          },
+          data: {
+            label,
+          },
+        });
+        return NextResponse.json({ saved: true, label: updated.label });
+      }
     } else {
-      await prisma.save.create({
+      const created = await prisma.save.create({
         data: {
           userId,
           postId,
+          label,
         },
       });
-      return NextResponse.json({ saved: true });
+      return NextResponse.json({ saved: true, label: created.label });
     }
   } catch (error: unknown) {
     const err = error as Error;

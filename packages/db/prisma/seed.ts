@@ -221,6 +221,98 @@ async function main() {
   }
 
   console.log(`Created ${sourcesData.length} sources.`);
+
+  // 3. Seed Mock Posts
+  console.log('Seeding mock posts...');
+  const allSources = await prisma.source.findMany();
+  const allTags = await prisma.tag.findMany();
+
+  const mockPosts = [
+    {
+      title: "Mars 2026: Designing the Next Generation of Exploration Rovers",
+      url: "https://www.jpl.nasa.gov/news/mars-2026-rover",
+      excerpt: "JPL engineers discuss the mechanical, computational, and scientific architecture behind the next Mars exploration payload, focusing on autonomous robotics and navigation.",
+      wordCount: 1200,
+      sourceName: "NASA JPL News",
+      tagSlugs: ["astrophysics", "aerospace", "robotics"]
+    },
+    {
+      title: "Exploring the Limits of Silicon: Quantum Dot Integration in Cleanrooms",
+      url: "https://www.asml.com/en/news/quantum-dots",
+      excerpt: "ASML insights into lithography improvements for quantum dot integration on standard CMOS wafers, paving the way for hybrid semiconductor quantum devices.",
+      wordCount: 1500,
+      sourceName: "ASML Insights",
+      tagSlugs: ["semiconductors", "material-science", "quantum-computing"]
+    },
+    {
+      title: "Fission vs Fusion: Nuclear Materials Under Extreme Neutron Irradiation",
+      url: "https://cerncourier.com/nuclear-materials-fusion",
+      excerpt: "A deep dive into structural damage modeling for reactor walls under high neutron fluxes, contrasting magnetic confinement fusion with standard heavy-water fission reactors.",
+      wordCount: 2200,
+      sourceName: "CERN Courier",
+      tagSlugs: ["nuclear-engineering", "material-science"]
+    },
+    {
+      title: "Silicon Photonics: Accelerating Chip-to-Chip Interconnects in Datacenters",
+      url: "https://www.intel.com/research/silicon-photonics",
+      excerpt: "Intel Labs demonstrates sub-picojoule-per-bit optical links integrated directly onto multi-chip modules, bypassing copper bandwidth bottlenecks.",
+      wordCount: 950,
+      sourceName: "Intel Labs Research",
+      tagSlugs: ["semiconductors", "system-design"]
+    },
+    {
+      title: "CRISPR-Cas12 Diagnostics: Engineering Programmable Nucleic Acid Detectors",
+      url: "https://www.technologyreview.com/crispr-diagnostics",
+      excerpt: "Recent advances in biological engineering utilize Cas12 and Cas13 endonucleases for rapid, paper-strip-based diagnostic sensing of viral pathogens.",
+      wordCount: 1800,
+      sourceName: "MIT Technology Review",
+      tagSlugs: ["bioengineering"]
+    },
+    {
+      title: "Aerodynamic Optimization of Starship Flight profiles during Landing",
+      url: "https://www.spacex.com/starship-flight-profiles",
+      excerpt: "SpaceX guidance controllers discuss the belly-flop maneuver and supersonic retropropulsion equations used to land heavy launch vehicles in thin atmospheres.",
+      wordCount: 1400,
+      sourceName: "SpaceX Mission Updates",
+      tagSlugs: ["aerospace", "robotics"]
+    },
+    {
+      title: "Solid-State Perovskite Solar Cells: Maximizing Solar Conversion Efficiency",
+      url: "https://www.nrel.gov/perovskite-efficiency",
+      excerpt: "NREL researchers catalog materials modifications to lead-halide perovskite structures to prevent thermal degradation under prolonged solar illumination.",
+      wordCount: 1600,
+      sourceName: "NREL Energy Research",
+      tagSlugs: ["renewable-energy", "chemical-engineering"]
+    }
+  ];
+
+  for (const post of mockPosts) {
+    const source = allSources.find((s) => s.name === post.sourceName);
+    if (!source) continue;
+
+    // Connect tags
+    const matchedTags = allTags.filter((t) => post.tagSlugs.includes(t.slug));
+    const tagCreates = matchedTags.map((tag) => ({
+      tag: { connect: { id: tag.id } }
+    }));
+
+    await prisma.post.upsert({
+      where: { url: post.url },
+      update: {},
+      create: {
+        title: post.title,
+        url: post.url,
+        excerpt: post.excerpt,
+        wordCount: post.wordCount,
+        publishedAt: new Date(),
+        sourceId: source.id,
+        tags: {
+          create: tagCreates
+        }
+      }
+    });
+  }
+  console.log(`Seeded ${mockPosts.length} mock posts.`);
   console.log('Seeding finished.');
 }
 

@@ -32,7 +32,12 @@ interface PostItem {
   }[];
   isLiked: boolean;
   isSaved: boolean;
+  bookmarkLabel: string | null;
+  isReposted: boolean;
   isRead: boolean;
+  likesCount: number;
+  commentsCount: number;
+  repostsCount: number;
 }
 
 interface CompanySource {
@@ -59,6 +64,16 @@ interface SuggestedSource {
   score: number;
 }
 
+interface CommentItem {
+  id: string;
+  body: string;
+  createdAt: string;
+  user: {
+    name: string | null;
+    image: string | null;
+  };
+}
+
 export default function FeedView({ initialUser }: { initialUser: UserStats }) {
   const [user, setUser] = useState<UserStats>(initialUser);
   const [posts, setPosts] = useState<PostItem[]>([]);
@@ -66,17 +81,36 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  // Search & Navigation
+  const [feedSearch, setFeedSearch] = useState("");
+
   // Company management states
   const [allSources, setAllSources] = useState<CompanySource[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestedSource[]>([]);
   const [showDirectory, setShowDirectory] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [directorySearchQuery, setDirectorySearchQuery] = useState("");
+
+  // Bookmark management states
+  const [bookmarkPickerPostId, setBookmarkPickerPostId] = useState<string | null>(null);
+  const [bookmarkLabelText, setBookmarkLabelText] = useState("");
+
+  // Comments states
+  const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
+  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newCommentText, setNewCommentText] = useState("");
 
   // Fetch initial posts and company details on load
   useEffect(() => {
-    fetchPosts(0, false);
+    fetchPosts(0, false, feedSearch);
     fetchCompanyData();
   }, []);
+
+  // Trigger search on debounce or press enter
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchPosts(0, false, feedSearch);
+  };
 
   const fetchCompanyData = async () => {
     try {
@@ -98,7 +132,7 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
     }
   };
 
-  const fetchPosts = async (currentCursor: number, append: boolean) => {
+  const fetchPosts = async (currentCursor: number, append: boolean, searchQuery: string = "") => {
     if (append) {
       setLoadingMore(true);
     } else {
@@ -106,7 +140,9 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
     }
 
     try {
-      const res = await fetch(`/api/feed?cursor=${currentCursor}&limit=10`);
+      const res = await fetch(
+        `/api/feed?cursor=${currentCursor}&limit=10&search=${encodeURIComponent(searchQuery)}`
+      );
       if (res.ok) {
         const data = await res.json();
         if (append) {
@@ -126,9 +162,17 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
 
   const handleLike = async (postId: string) => {
     setPosts((prev) =>
-      prev.map((post) =>
-        post.id === postId ? { ...post, isLiked: !post.isLiked } : post
-      )
+      prev.map((post) => {
+        if (post.id === postId) {
+          const isLiked = !post.isLiked;
+          return {
+            ...post,
+            isLiked,
+            likesCount: post.likesCount + (isLiked ? 1 : -1),
+          };
+        }
+        return post;
+      })
     );
 
     try {
@@ -138,15 +182,51 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
     }
   };
 
-  const handleSave = async (postId: string) => {
+  const handleRepost = async (postId: string) => {
     setPosts((prev) =>
-      prev.map((post) =>
-        post.id === postId ? { ...post, isSaved: !post.isSaved } : post
-      )
+      prev.map((post) => {
+        if (post.id === postId) {
+          const isReposted = !post.isReposted;
+          return {
+            ...post,
+            isReposted,
+            repostsCount: post.repostsCount + (isReposted ? 1 : -1),
+          };
+        }
+        return post;
+      })
     );
 
     try {
-      await fetch(`/api/posts/${postId}/save`, { method: "POST" });
+      await fetch(`/api/posts/${postId}/repost`, { method: "POST" });
+    } catch (err) {
+      console.error("Failed to toggle repost:", err);
+    }
+  };
+
+  const handleSaveToggle = async (postId: string, label: string = "Default") => {
+    try {
+      const res = await fetch(`/api/posts/${postId}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  isSaved: data.saved,
+                  bookmarkLabel: data.saved ? data.label || label : null,
+                }
+              : post
+          )
+        );
+        setBookmarkPickerPostId(null);
+        setBookmarkLabelText("");
+      }
     } catch (err) {
       console.error("Failed to toggle save:", err);
     }
@@ -174,14 +254,11 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
   };
 
   const handleFollowSource = async (sourceId: string) => {
-    // Optimistically toggle follow state
     setAllSources((prev) =>
       prev.map((src) =>
         src.id === sourceId ? { ...src, isFollowed: !src.isFollowed } : src
       )
     );
-
-    // Filter out of suggestions if followed
     setSuggestions((prev) => prev.filter((s) => s.id !== sourceId));
 
     try {
@@ -189,9 +266,7 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
         method: "POST",
       });
       if (res.ok) {
-        // Reload feed with new scoring weights
-        fetchPosts(0, false);
-        // Refresh suggestions
+        fetchPosts(0, false, feedSearch);
         const suggestionsRes = await fetch("/api/sources/suggestions");
         if (suggestionsRes.ok) {
           const data = await suggestionsRes.json();
@@ -200,6 +275,55 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
       }
     } catch (err) {
       console.error("Failed to follow source:", err);
+    }
+  };
+
+  // Comments Actions
+  const toggleComments = async (postId: string) => {
+    if (activeCommentsPostId === postId) {
+      setActiveCommentsPostId(null);
+      setComments([]);
+      return;
+    }
+
+    setActiveCommentsPostId(postId);
+    setCommentsLoading(true);
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments`);
+      if (res.ok) {
+        const data = await res.json();
+        setComments(data);
+      }
+    } catch (err) {
+      console.error("Failed to load comments:", err);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const handleAddComment = async (postId: string) => {
+    if (!newCommentText.trim()) return;
+
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newCommentText }),
+      });
+      if (res.ok) {
+        const newComment = await res.json();
+        setComments((prev) => [...prev, newComment]);
+        setNewCommentText("");
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === postId
+              ? { ...post, commentsCount: post.commentsCount + 1 }
+              : post
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Failed to post comment:", err);
     }
   };
 
@@ -226,7 +350,7 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
   const xpPercentage = Math.min(100, Math.floor((user.xp / nextLevelXp) * 100));
 
   const filteredSources = allSources.filter((source) =>
-    source.name.toLowerCase().includes(searchQuery.toLowerCase())
+    source.name.toLowerCase().includes(directorySearchQuery.toLowerCase())
   );
 
   return (
@@ -334,13 +458,28 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
 
       {/* Main feed container */}
       <section className="lg:col-span-3 flex flex-col gap-6">
-        <div className="flex items-center justify-between border-b border-[#21262d] pb-4">
-          <h2 className="text-2xl font-extrabold text-white tracking-wide">
-            Your Core Feed
-          </h2>
-          <span className="text-xs text-gray-400 font-medium">
-            Personalized relevance scoring
-          </span>
+        {/* Search and Title */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#21262d] pb-4 gap-4">
+          <div>
+            <h2 className="text-2xl font-extrabold text-white tracking-wide">
+              Your Core Feed
+            </h2>
+            <span className="text-xs text-gray-400 font-medium">
+              Personalized relevance scoring
+            </span>
+          </div>
+
+          {/* Unified Search Input */}
+          <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md w-full relative">
+            <input
+              type="text"
+              value={feedSearch}
+              onChange={(e) => setFeedSearch(e.target.value)}
+              placeholder="Search posts, topics, tags..."
+              className="w-full bg-[#161b22] border border-[#21262d] rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+            <span className="absolute left-3.5 top-2.5 text-gray-400 text-sm">🔍</span>
+          </form>
         </div>
 
         {loading ? (
@@ -353,8 +492,19 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
             <span className="text-4xl">📭</span>
             <h4 className="text-lg font-bold text-white">Your feed is empty</h4>
             <p className="text-gray-400 text-sm max-w-md mx-auto">
-              We couldn&apos;t find any articles. Try exploring companies to follow or add more interests to your profile!
+              We couldn&apos;t find any articles matching your tags or filters. Try exploring companies to follow or clearing your search!
             </p>
+            {feedSearch && (
+              <button
+                onClick={() => {
+                  setFeedSearch("");
+                  fetchPosts(0, false, "");
+                }}
+                className="mt-2 text-xs font-bold text-indigo-400 hover:underline"
+              >
+                Clear Search Filter
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-5">
@@ -369,6 +519,13 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
                 {post.isRead && (
                   <span className="absolute top-4 right-4 bg-[#21262d] text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
                     Read
+                  </span>
+                )}
+
+                {/* Bookmark Folder Label Indicator */}
+                {post.isSaved && post.bookmarkLabel && (
+                  <span className="absolute top-4 right-16 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                    📂 {post.bookmarkLabel}
                   </span>
                 )}
 
@@ -414,8 +571,35 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
                   )}
                 </div>
 
-                <div className="flex items-center justify-between border-t border-[#21262d] pt-3 mt-1">
-                  <div className="flex gap-4">
+                {/* Custom Bookmark Tag Dialog Box */}
+                {bookmarkPickerPostId === post.id && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-[#0d1117] border border-[#21262d] p-4 rounded-xl flex flex-col gap-3 mt-2"
+                  >
+                    <span className="text-xs font-bold text-gray-300">Save to Custom Bookmark Folder:</span>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={bookmarkLabelText}
+                        onChange={(e) => setBookmarkLabelText(e.target.value)}
+                        placeholder="e.g. Astrophysics, Deep Tech, Read Later..."
+                        className="flex-1 bg-[#161b22] border border-[#30363d] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none"
+                      />
+                      <button
+                        onClick={() => handleSaveToggle(post.id, bookmarkLabelText || "Default")}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-all"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Social tray and action buttons */}
+                <div className="flex flex-wrap items-center justify-between border-t border-[#21262d] pt-3 mt-1 gap-3">
+                  <div className="flex gap-2">
+                    {/* Like button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -441,13 +625,77 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
                           d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                         />
                       </svg>
-                      Like
+                      <span>{post.likesCount}</span>
                     </button>
 
+                    {/* Repost button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleSave(post.id);
+                        handleRepost(post.id);
+                      }}
+                      className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        post.isReposted
+                          ? "bg-green-500/10 border-green-500/40 text-green-500"
+                          : "border-[#21262d] text-gray-400 hover:text-white hover:border-[#30363d]"
+                      }`}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17"
+                        />
+                      </svg>
+                      <span>{post.repostsCount}</span>
+                    </button>
+
+                    {/* Comment button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleComments(post.id);
+                      }}
+                      className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        activeCommentsPostId === post.id
+                          ? "bg-indigo-500/10 border-indigo-500/40 text-indigo-400"
+                          : "border-[#21262d] text-gray-400 hover:text-white hover:border-[#30363d]"
+                      }`}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                        />
+                      </svg>
+                      <span>{post.commentsCount}</span>
+                    </button>
+
+                    {/* Save/Custom Bookmark button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (post.isSaved) {
+                          handleSaveToggle(post.id);
+                        } else {
+                          setBookmarkPickerPostId(bookmarkPickerPostId === post.id ? null : post.id);
+                          setBookmarkLabelText("");
+                        }
                       }}
                       className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                         post.isSaved
@@ -485,12 +733,70 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
                     </button>
                   )}
                 </div>
+
+                {/* Inline Comment Drawer Section */}
+                {activeCommentsPostId === post.id && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="border-t border-[#21262d] pt-4 mt-2 flex flex-col gap-4"
+                  >
+                    <span className="text-xs font-bold text-gray-200">Discussion</span>
+
+                    {/* Write comment */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newCommentText}
+                        onChange={(e) => setNewCommentText(e.target.value)}
+                        placeholder="Write a comment..."
+                        className="flex-1 bg-[#0d1117] border border-[#21262d] rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      />
+                      <button
+                        onClick={() => handleAddComment(post.id)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all"
+                      >
+                        Post
+                      </button>
+                    </div>
+
+                    {/* Comments List */}
+                    {commentsLoading ? (
+                      <div className="flex justify-center py-4">
+                        <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    ) : comments.length === 0 ? (
+                      <span className="text-xs text-gray-500 italic">No comments yet. Be the first to comment!</span>
+                    ) : (
+                      <div className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-1">
+                        {comments.map((comment) => (
+                          <div
+                            key={comment.id}
+                            className="bg-[#0d1117] border border-[#21262d] p-3 rounded-xl flex gap-3"
+                          >
+                            <img
+                              src={comment.user.image || `https://api.dicebear.com/7.x/bottts/svg?seed=${comment.user.name || "User"}`}
+                              alt={comment.user.name || "User"}
+                              className="w-7 h-7 rounded-full border border-indigo-500/40"
+                            />
+                            <div className="flex flex-col min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-gray-300">{comment.user.name || "Dev"}</span>
+                                <span className="text-[10px] text-gray-500">{formatRelativeTime(comment.createdAt)}</span>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-1 whitespace-pre-wrap">{comment.body}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </article>
             ))}
 
             {cursor !== null && (
               <button
-                onClick={() => fetchPosts(cursor, true)}
+                onClick={() => fetchPosts(cursor, true, feedSearch)}
                 disabled={loadingMore}
                 className="w-full mt-4 py-3 rounded-2xl bg-[#161b22] hover:bg-[#21262d] border border-[#30363d] text-gray-300 text-sm font-semibold hover:text-white transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
@@ -541,8 +847,8 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
             <div className="px-6 py-4 bg-[#0d1117] border-b border-[#21262d]">
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={directorySearchQuery}
+                onChange={(e) => setDirectorySearchQuery(e.target.value)}
                 placeholder="Search engineering blogs, space programs, chip designers..."
                 className="w-full bg-[#161b22] border border-[#30363d] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
               />
