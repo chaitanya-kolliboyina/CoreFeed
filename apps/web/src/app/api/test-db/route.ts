@@ -13,12 +13,13 @@ export async function GET() {
         nodeEnv: process.env.NODE_ENV,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as Error;
     return NextResponse.json(
       {
         success: false,
-        error: error.message || String(error),
-        stack: error.stack,
+        error: err.message || String(err),
+        stack: err.stack,
         env: {
           hasDbUrl: !!process.env.DATABASE_URL,
           hasSecret: !!process.env.NEXTAUTH_SECRET,
