@@ -415,6 +415,13 @@ export default function FeedView({ initialUser }: { initialUser: UserStats }) {
             🔍 Explore Companies
           </button>
 
+          <a
+            href="/settings"
+            className="w-full py-2.5 rounded-xl border border-[#30363d] hover:bg-[#21262d] text-gray-200 text-xs font-bold transition-all text-center block"
+          >
+            ⚙️ Preferences & Settings
+          </a>
+
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             className="w-full py-2 rounded-xl border border-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/5 transition-all text-center"
