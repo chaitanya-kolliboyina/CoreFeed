@@ -31,6 +31,7 @@ model User {
   saves      Save[]
   readEvents ReadEvent[]
   xpEvents   XpEvent[]
+  followedSources UserSource[]
 }
 
 model Account {
@@ -85,6 +86,7 @@ model Source {
   hasFullFeed Boolean     @default(false)
   tags        SourceTag[]
   posts       Post[]
+  followers   UserSource[]
 }
 
 model SourceTag {
@@ -183,4 +185,12 @@ model XpEvent {
   reason    String
   createdAt DateTime @default(now())
   user User @relation(fields: [userId], references: [id])
+}
+
+model UserSource {
+  userId   String
+  sourceId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source   Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  @@id([userId, sourceId])
 }

@@ -10,7 +10,8 @@ export interface RankedPost extends Post {
 export function rankPosts(
   posts: (Post & { source: Source; tags: (PostTag & { tag: Tag })[] })[],
   userInterestTagIds: string[],
-  readPostIds: string[]
+  readPostIds: string[],
+  followedSourceIds: string[] = []
 ): RankedPost[] {
   const now = new Date();
 
@@ -25,11 +26,16 @@ export function rankPosts(
       ).length;
       score += matchingTagsCount * 50;
 
-      // 2. Recency decay (-1 point per hour elapsed)
+      // 2. Company subscription boost (+100 points if following this company/source)
+      if (followedSourceIds.includes(post.sourceId)) {
+        score += 100;
+      }
+
+      // 3. Recency decay (-1 point per hour elapsed)
       const hoursAge = (now.getTime() - new Date(post.publishedAt).getTime()) / (1000 * 60 * 60);
       score -= Math.max(0, hoursAge);
 
-      // 3. Read penalty (-100 points for read history)
+      // 4. Read penalty (-100 points for read history)
       if (readPostIds.includes(post.id)) {
         score -= 100;
       }

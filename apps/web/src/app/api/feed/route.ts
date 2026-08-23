@@ -44,16 +44,15 @@ export async function GET(request: Request) {
     });
     const savedPostIds = new Set(saves.map((s) => s.postId));
 
-    // 4. Fetch posts published in the last 7 days to rank
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // 4. Fetch followed source IDs to boost ranking
+    const followedSources = await prisma.userSource.findMany({
+      where: { userId },
+      select: { sourceId: true },
+    });
+    const followedSourceIds = followedSources.map((fs) => fs.sourceId);
 
+    // 5. Fetch posts to rank (no 7-day limit)
     const posts = await prisma.post.findMany({
-      where: {
-        publishedAt: {
-          gte: sevenDaysAgo,
-        },
-      },
       include: {
         source: true,
         tags: {
@@ -64,8 +63,8 @@ export async function GET(request: Request) {
       },
     });
 
-    // 5. Rank posts
-    const ranked = rankPosts(posts, interestTagIds, readPostIds);
+    // 6. Rank posts
+    const ranked = rankPosts(posts, interestTagIds, readPostIds, followedSourceIds);
 
     // 6. Slice page
     const sliced = ranked.slice(cursor, cursor + limit);

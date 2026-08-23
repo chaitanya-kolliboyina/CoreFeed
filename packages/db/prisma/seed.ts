@@ -18,6 +18,17 @@ async function main() {
     { slug: 'typescript', label: 'TypeScript' },
     { slug: 'rust', label: 'Rust Programming' },
     { slug: 'web3', label: 'Web3 & Blockchain' },
+    { slug: 'semiconductors', label: 'Semiconductors & Chip Design' },
+    { slug: 'nuclear-engineering', label: 'Nuclear Engineering & Physics' },
+    { slug: 'astrophysics', label: 'Astrophysics & Space Exploration' },
+    { slug: 'quantum-computing', label: 'Quantum Computing' },
+    { slug: 'bioengineering', label: 'Bioengineering & Genetics' },
+    { slug: 'aerospace', label: 'Aerospace Engineering' },
+    { slug: 'material-science', label: 'Material Science' },
+    { slug: 'renewable-energy', label: 'Renewable Energy & Grid' },
+    { slug: 'robotics', label: 'Robotics & Control Systems' },
+    { slug: 'chemical-engineering', label: 'Chemical Engineering' },
+    { slug: 'civil-structural', label: 'Civil & Structural Engineering' },
   ];
 
   const tags = await Promise.all(
@@ -136,6 +147,55 @@ async function main() {
       siteUrl: 'https://medium.com/pinterest-engineering',
       feedUrl: 'https://medium.com/feed/pinterest-engineering',
       tags: ['ai-ml', 'backend', 'system-design'],
+      hasFullFeed: true,
+    },
+    {
+      name: 'NASA JPL News',
+      siteUrl: 'https://www.jpl.nasa.gov/news',
+      feedUrl: 'https://www.jpl.nasa.gov/feeds/news/',
+      tags: ['astrophysics', 'aerospace', 'robotics'],
+      hasFullFeed: true,
+    },
+    {
+      name: 'CERN Courier',
+      siteUrl: 'https://cerncourier.com/',
+      feedUrl: 'https://cerncourier.com/feed/',
+      tags: ['nuclear-engineering', 'quantum-computing', 'material-science'],
+      hasFullFeed: true,
+    },
+    {
+      name: 'ASML Insights',
+      siteUrl: 'https://www.asml.com/en/news/stories',
+      feedUrl: 'https://www.asml.com/feed', // mock feed URL for chip making
+      tags: ['semiconductors', 'material-science', 'robotics'],
+      hasFullFeed: false,
+    },
+    {
+      name: 'Intel Labs Research',
+      siteUrl: 'https://www.intel.com/content/www/us/en/research/intel-labs.html',
+      feedUrl: 'https://www.intel.com/content/www/us/en/research/intel-labs.feed.xml',
+      tags: ['semiconductors', 'quantum-computing', 'ai-ml'],
+      hasFullFeed: true,
+    },
+    {
+      name: 'MIT Technology Review',
+      siteUrl: 'https://www.technologyreview.com/',
+      feedUrl: 'https://www.technologyreview.com/feed/',
+      tags: ['quantum-computing', 'bioengineering', 'renewable-energy'],
+      hasFullFeed: false,
+    },
+    {
+      name: 'SpaceX Mission Updates',
+      siteUrl: 'https://www.spacex.com/',
+      feedUrl: 'https://www.spacex.com/feed',
+      tags: ['aerospace', 'robotics', 'material-science'],
+      hasFullFeed: false,
+    },
+    {
+      name: 'NREL Energy Research',
+      siteUrl: 'https://www.nrel.gov/',
+      feedUrl: 'https://www.nrel.gov/news/press/press.xml',
+      tags: ['renewable-energy', 'chemical-engineering', 'civil-structural'],
       hasFullFeed: true,
     }
   ];
