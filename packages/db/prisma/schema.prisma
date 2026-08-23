@@ -20,6 +20,10 @@ model User {
   currentStreak Int       @default(0)
   longestStreak Int       @default(0)
   lastReadDate  DateTime?
+  theme         String    @default("dark")
+  layoutDensity String    @default("comfortable")
+  emailAlerts   Boolean   @default(true)
+  weeklyDigest  Boolean   @default(false)
   createdAt     DateTime  @default(now())
 
   accounts   Account[]
