@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding tags and sources...');
 
-  // 1. Core Tags
   const tagsData = [
     { slug: 'frontend', label: 'Frontend' },
     { slug: 'backend', label: 'Backend' },
@@ -14,6 +13,11 @@ async function main() {
     { slug: 'react', label: 'React' },
     { slug: 'ai-ml', label: 'AI & Machine Learning' },
     { slug: 'mobile', label: 'Mobile Dev' },
+    { slug: 'security', label: 'Cybersecurity' },
+    { slug: 'databases', label: 'Databases & SQL' },
+    { slug: 'typescript', label: 'TypeScript' },
+    { slug: 'rust', label: 'Rust Programming' },
+    { slug: 'web3', label: 'Web3 & Blockchain' },
   ];
 
   const tags = await Promise.all(

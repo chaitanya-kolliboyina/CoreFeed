@@ -19,18 +19,20 @@ export default function OnboardingPage() {
 
   // MOCK DATA for now until DB is seeded
   useEffect(() => {
-    // In reality, this would fetch from an API
-    // For now, we mock it. Once DB is available, we will fetch from /api/tags
-    setTags([
-      { id: "1", slug: "frontend", label: "Frontend" },
-      { id: "2", slug: "backend", label: "Backend" },
-      { id: "3", slug: "system-design", label: "System Design" },
-      { id: "4", slug: "devops", label: "DevOps & Infrastructure" },
-      { id: "5", slug: "react", label: "React" },
-      { id: "6", slug: "ai-ml", label: "AI & Machine Learning" },
-      { id: "7", slug: "mobile", label: "Mobile Dev" },
-    ]);
-    setLoading(false);
+    async function loadTags() {
+      try {
+        const res = await fetch("/api/tags");
+        if (res.ok) {
+          const data = await res.json();
+          setTags(data);
+        }
+      } catch (e) {
+        console.error("Failed to load tags:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadTags();
   }, []);
 
   const toggleTag = (id: string) => {
@@ -53,7 +55,7 @@ export default function OnboardingPage() {
       });
 
       if (res.ok) {
-        router.push("/");
+        router.push("/feed");
         router.refresh();
       } else {
         console.error("Failed to save tags");
