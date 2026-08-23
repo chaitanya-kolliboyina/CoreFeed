@@ -17,3 +17,4 @@ yarn-error.log*
 .turbo
 playwright-report/
 test-results/
+packages/db/client/
